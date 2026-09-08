@@ -39,7 +39,9 @@ case "$cmd" in
     echo "==> server containers:"
     remote "sudo docker compose ps --format 'table {{.Name}}\t{{.Image}}\t{{.Status}}'"
     echo "==> sub2api image on server:"
-    remote "sudo docker inspect --format '{{index .Config.Image}}  {{index .RepoDigests 0}}' sub2api 2>/dev/null || true"
+    remote "sudo docker image inspect ${IMAGE_REPO}:latest --format '{{index .RepoDigests 0}}  created={{.Created}}' 2>/dev/null || true"
+    echo "==> running app version:"
+    remote "sudo docker exec sub2api /app/sub2api --version 2>&1 | grep -oE 'Sub2API [^{]*' | tail -1"
     echo "==> image configured in docker-compose.yml:"
     remote "grep -nE 'image: *${IMAGE_REPO//\//\\/}' docker-compose.yml"
     ;;
