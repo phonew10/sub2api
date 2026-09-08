@@ -139,14 +139,32 @@ API-key account to group 3, wait for the PR #6858 fix to ship (or run a fork bui
 `SUB2API_IMAGES_MAIN_MODEL=gpt-5.6-luna`), then rerun the calls in
 `ops/e2e/image-params.sh` (it reads the test key from the gitignored `ops/.env`).
 
-**Model whitelist.** The three accounts carry an explicit `model_mapping` whitelist that
-was missing every model the free plan can actually use. During testing these keys were
-added to all three accounts (via SQL on `accounts.credentials->model_mapping`):
-`gpt-image-1`, `gpt-image-2`, `gpt-5.5`, `gpt-5.6-luna`, `gpt-6-astra`. Of the whole
-list, **only `gpt-5.6-luna` answered successfully**; every older model id returns
-`not supported when using Codex with a ChatGPT account` (relay marks it
-`upstream_400_codex_plan_gated_model` with a 30 min per-model cooldown). `usage_logs` had
-zero rows before this session, so the deployment had never served a successful request.
+**Model whitelist.** Each OpenAI OAuth account carries a whitelist stored in the database
+(`accounts.credentials->'model_mapping'`), not in source code. It was saved from the admin
+UI when the accounts were added in March 2026: the account form's **Model Restriction →
+Model Whitelist** section, filled by the "Sync upstream models" action, snapshotted the 54
+model ids OpenAI listed at the time. Nothing refreshes it afterwards, so newer ids such as
+`gpt-5.6-luna` were rejected by the relay with `model_not_supported` before ever reaching
+OpenAI. Of every id tried on these free accounts, **only `gpt-5.6-luna` works**; older
+ids return `not supported when using Codex with a ChatGPT account` (relay reason
+`upstream_400_codex_plan_gated_model`, 30 min per-model cooldown).
+
+On 2026-09-09 these keys were added to all three accounts and are now persisted:
+`gpt-5.6-luna`, `gpt-5.5`, `gpt-6-astra`, `gpt-image-1`, `gpt-image-2`.
+
+To edit in the UI: Admin → Accounts → account → Edit → **Model Restriction (Optional)** →
+**Model Whitelist** tab → add the id → Save. Or via SQL on the server:
+
+```bash
+sudo docker exec -i sub2api-postgres psql -U sub2api -d sub2api -c \
+  "update accounts set credentials = credentials || jsonb_build_object('model_mapping',
+   (credentials->'model_mapping') || '{\"gpt-5.6-luna\":\"gpt-5.6-luna\"}'::jsonb)
+   where platform='openai' and type='oauth';"
+```
+
+Clearing the whitelist entirely (empty mapping) makes an OAuth account accept any model id,
+which is simpler when OpenAI renames models often. `usage_logs` had zero rows before this
+session, so the deployment had never served a successful request.
 
 ## Keeping the fork in sync with upstream
 
