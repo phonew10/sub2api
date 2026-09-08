@@ -106,6 +106,48 @@ sudo docker compose logs --tail=50 sub2api
   Run `sudo docker image prune -f` after each sub2api update to drop the previous image.
 - Memory is 1 GB total with ~75 MB free; Postgres + Redis + app fit, but don't add services.
 
+## Image generation status (tested 2026-09-09)
+
+API key used for tests: the `sub2api-test` key in group `OpenClaw专用` (group 3), which
+holds the three **free-plan** ChatGPT OAuth accounts. No API-key (platform key) accounts exist.
+
+**Relay side.** `/v1/images/generations` and `/v1/images/edits` parse and forward `size`,
+`output_format`, `output_compression`, `mask` (as `input_image_mask`), `quality`,
+`background`, `input_fidelity`, `n`, `partial_images` and `stream`. Any of `size`, `mask`,
+`output_format`, `output_compression` marks the request "images-native"; OAuth accounts
+qualify for that, so nothing is blocked by the relay itself.
+
+**Upstream side, free ChatGPT accounts.** Image generation does not work, for two
+independent reasons:
+
+1. v0.2.3 wraps every `/v1/images/*` call in a hidden Responses call using the hard-coded
+   carrier model `gpt-5.4-mini`, which OpenAI has retired. Every call fails with
+   `The 'gpt-5.4-mini' model is not supported when using Codex with a ChatGPT account`
+   (upstream issue #6855; fix PR #6858 switches to `gpt-5.6-luna` and adds a
+   `SUB2API_IMAGES_MAIN_MODEL` override; not merged or released as of 2026-09-09).
+2. Even with a working carrier (`gpt-5.6-luna` does work for chat on these accounts),
+   OpenAI's Codex backend silently drops the `image_generation` tool for free-plan
+   accounts: a forced `tool_choice` returns `Tool choice 'image_generation' not found in
+   'tools' parameter`, and an unforced one returns text only. Upstream issues #3403 and
+   #1849 confirm free accounts lost image generation when upstream moved to the new
+   Codex image path in v0.1.116. A Plus/Pro OAuth account or an OpenAI API-key account is
+   required.
+
+So `mask`, `output_format=jpeg`, `output_compression` and `size` could **not** be
+verified end to end on this deployment. To finish the test add a paid OAuth account or an
+API-key account to group 3, wait for the PR #6858 fix to ship (or run a fork build with
+`SUB2API_IMAGES_MAIN_MODEL=gpt-5.6-luna`), then rerun the calls in
+`ops/tests/image-params.sh`.
+
+**Model whitelist.** The three accounts carry an explicit `model_mapping` whitelist that
+was missing every model the free plan can actually use. During testing these keys were
+added to all three accounts (via SQL on `accounts.credentials->model_mapping`):
+`gpt-image-1`, `gpt-image-2`, `gpt-5.5`, `gpt-5.6-luna`, `gpt-6-astra`. Of the whole
+list, **only `gpt-5.6-luna` answered successfully**; every older model id returns
+`not supported when using Codex with a ChatGPT account` (relay marks it
+`upstream_400_codex_plan_gated_model` with a 30 min per-model cooldown). `usage_logs` had
+zero rows before this session, so the deployment had never served a successful request.
+
 ## Keeping the fork in sync with upstream
 
 `main` = upstream `main` + our `ops/` directory (plus the `dubai.key` line in `.gitignore`).
