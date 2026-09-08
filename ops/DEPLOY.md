@@ -97,10 +97,13 @@ sudo docker compose logs --tail=50 sub2api
   OpenAI HTTP/2 fallback, `REDIS_USERNAME`, `SETUP_MIGRATION_TIMEOUT_SECONDS`,
   `UPDATE_GITHUB_TOKEN`, `APPLE_CONTAINER_*`). All have defaults; add them only when needed.
   Compare with: `comm -13 <(server keys) <(grep -v '^#' deploy/.env.example | cut -d= -f1 | sort)`.
-- **Disk is 93 % full (3.5 GB free of 45 GB).** sub2api itself is small (~1 GB incl. DB).
-  The box also hosts `wimoor` and `nacos` under `/opt`. Safe reclaims:
-  `sudo journalctl --vacuum-size=500M` (~4 GB), `sudo docker image prune -f` (~950 MB),
-  and review `/var/log` (4.2 GB). Set a journald `SystemMaxUse=` to keep it down.
+- **Disk was 93 % full on 2026-09-09; now 81 % (8.9 GB free of 45 GB)** after
+  `journalctl --vacuum-size=500M` (freed 3.5 GB, `SystemMaxUse=500M` now set in
+  `/etc/systemd/journald.conf`) and `docker image prune -f` (freed 0.5 GB). sub2api itself
+  uses ~1 GB. Remaining big items, all unrelated to sub2api: a 16 GB `/swapfile`,
+  nacos (`/opt/nacos` 4.3 GB + 4.4 GB of old logs in `~/logs/nacos`), the dormant wimoor
+  stack (`/opt/wimoor` 1.9 GB, not running, port 8099 dead), old snap revisions (~1 GB).
+  Run `sudo docker image prune -f` after each sub2api update to drop the previous image.
 - Memory is 1 GB total with ~75 MB free; Postgres + Redis + app fit, but don't add services.
 
 ## Keeping the fork in sync with upstream
