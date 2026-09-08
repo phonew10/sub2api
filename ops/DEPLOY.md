@@ -137,7 +137,7 @@ So `mask`, `output_format=jpeg`, `output_compression` and `size` could **not** b
 verified end to end on this deployment. To finish the test add a paid OAuth account or an
 API-key account to group 3, wait for the PR #6858 fix to ship (or run a fork build with
 `SUB2API_IMAGES_MAIN_MODEL=gpt-5.6-luna`), then rerun the calls in
-`ops/tests/image-params.sh`.
+`ops/e2e/image-params.sh` (it reads the test key from the gitignored `ops/.env`).
 
 **Model whitelist.** The three accounts carry an explicit `model_mapping` whitelist that
 was missing every model the free plan can actually use. During testing these keys were
