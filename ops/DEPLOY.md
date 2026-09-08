@@ -105,9 +105,11 @@ sudo docker compose logs --tail=50 sub2api
 
 ## Keeping the fork in sync with upstream
 
-`main` is kept as a pure mirror of upstream `main` (fast-forward only). Any of our own
-changes go on branches or under `ops/`. Run `./ops/sync-upstream.sh` regularly; it fetches
-upstream, fast-forwards `main`, pushes to `origin`, and prints the latest upstream tag.
+`main` = upstream `main` + our `ops/` directory (plus the `dubai.key` line in `.gitignore`).
+Keep our own changes under `ops/` so merges stay conflict-free. Run `./ops/sync-upstream.sh`
+regularly; it fetches upstream, merges it into `main`, pushes to `origin`, and prints the
+latest upstream tag. Merging the fork does **not** update the server; use
+`./ops/deploy-update.sh update` for that (the server pulls the upstream Docker image).
 
 Remotes expected in the local clone:
 

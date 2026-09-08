@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Fast-forward this fork's main to upstream main and push to origin.
+# Merge upstream main into this fork's main and push to origin.
+# main = upstream main + our ops/ directory; merges are conflict-free as long as
+# our changes stay under ops/.
 # Usage: ./ops/sync-upstream.sh          (from anywhere inside the repo)
 set -euo pipefail
 
@@ -22,19 +24,19 @@ git fetch --quiet origin
 cur_branch=$(git rev-parse --abbrev-ref HEAD)
 [[ "$cur_branch" == "main" ]] || git checkout --quiet main
 
-read -r ahead behind < <(git rev-list --left-right --count origin/main...upstream/main)
-echo "==> fork main: ${ahead} ahead, ${behind} behind upstream/main"
+git merge --ff-only origin/main 2>/dev/null || true   # pick up anything pushed from elsewhere
 
-if (( ahead > 0 )); then
-  echo "error: origin/main has ${ahead} commit(s) not in upstream; main must stay a pure mirror." >&2
-  echo "       Move those commits to a branch, then re-run." >&2
-  exit 1
-fi
+read -r ahead behind < <(git rev-list --left-right --count main...upstream/main)
+echo "==> fork main: ${ahead} ahead (ours), ${behind} behind upstream/main"
 
 if (( behind == 0 )); then
-  echo "==> already up to date"
+  echo "==> already up to date with upstream"
 else
-  git merge --ff-only upstream/main
+  echo "==> merging upstream/main"
+  if ! git merge --no-edit upstream/main; then
+    echo "error: merge conflict; resolve, commit, then 'git push origin main'" >&2
+    exit 1
+  fi
   git push origin main
   echo "==> pushed $(git rev-parse --short HEAD) to origin/main"
 fi
