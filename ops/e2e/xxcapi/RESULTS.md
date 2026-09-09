@@ -37,3 +37,8 @@ Exact 1536x864 output = arbitrary WIDTHxHEIGHT honored. Web ChatGPT/Codex paths 
 | edit with mask (retry) | gpt-image-2-medium | first try 502 "Upstream request failed" after 76 s (not charged); retry 200, PNG 2048x2048, 54 s | edit_mask.png, edit_mask_diff.jpg |
 
 Mask result: plant + shelf placed in the masked wall area; rest of the image preserved in content but the whole frame is re-rendered (mean pixel diff 9.8 outside mask vs 42.5 inside; 5.8% of outside pixels changed >40, mostly the shelf spilling ~120 px left of the mask edge, text/edges re-rasterised). Mask is honored as guidance, not as a hard pixel lock — same as OpenAI's own behaviour.
+
+## Round 3 (2026-09-09 06:44 UTC): gpt-image-2-high retest
+| generate | gpt-image-2-high | 500 get_channel_failed "no available channel in group default" (1.5 s, not charged) | - |
+| edit | gpt-image-2-high | 503 "No available compatible accounts" (1.8 s, not charged) | - |
+Same two errors as round 1, ~10 h later: the high tier has no backing channel on this relay. Model list still advertises it.
