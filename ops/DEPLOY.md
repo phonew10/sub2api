@@ -140,31 +140,50 @@ API-key account to group 3, wait for the PR #6858 fix to ship (or run a fork bui
 `ops/e2e/image-params.sh` (it reads the test key from the gitignored `ops/.env`).
 
 **Model whitelist.** Each OpenAI OAuth account carries a whitelist stored in the database
-(`accounts.credentials->'model_mapping'`), not in source code. It was saved from the admin
-UI when the accounts were added in March 2026: the account form's **Model Restriction →
-Model Whitelist** section, filled by the "Sync upstream models" action, snapshotted the 54
-model ids OpenAI listed at the time. Nothing refreshes it afterwards, so newer ids such as
-`gpt-5.6-luna` were rejected by the relay with `model_not_supported` before ever reaching
-OpenAI. Of every id tried on these free accounts, **only `gpt-5.6-luna` works**; older
-ids return `not supported when using Codex with a ChatGPT account` (relay reason
-`upstream_400_codex_plan_gated_model`, 30 min per-model cooldown).
+(`accounts.credentials->'model_mapping'`), not in source code. It is set from the admin UI
+(account form → **Model Restriction (Optional)** → **Model Whitelist**) and is only as fresh
+as the last time someone pressed **Sync upstream models** there. Nothing refreshes it
+automatically, so when OpenAI ships a new id it is rejected by the relay with
+`model_not_supported` until the list is synced again.
 
-On 2026-09-09 these keys were added to all three accounts and are now persisted:
-`gpt-5.6-luna`, `gpt-5.5`, `gpt-6-astra`, `gpt-image-1`, `gpt-image-2`.
+History:
+- March 2026: accounts added, whitelist synced → 54 ids. Every one of them later became
+  plan-gated or retired for free accounts, so the relay returned 400/404 for everything.
+- 2026-09-09 early: `gpt-5.6-luna`, `gpt-5.5`, `gpt-6-astra`, `gpt-image-1`, `gpt-image-2`
+  added by SQL during testing; `gpt-5.6-luna` was the only id that worked.
+- 2026-09-09 10:04: whitelist re-synced from upstream through the admin UI on all three
+  accounts → **62 ids**, now including `gpt-5.6-luna`, `gpt-5.6-terra`, `gpt-6-astra`,
+  `gpt-5.5`, `gpt-image-1`, `gpt-image-2`, `gpt-reserve`, `codex-auto-review`.
+  The UI sync is the supported way to keep this current; do it after each upstream release.
 
-To edit in the UI: Admin → Accounts → account → Edit → **Model Restriction (Optional)** →
-**Model Whitelist** tab → add the id → Save. Or via SQL on the server:
+Of the whole list, on **free** accounts only `gpt-5.6-luna` has answered successfully
+(`gpt-5.6-terra` untested); older ids return `not supported when using Codex with a ChatGPT
+account` and the relay parks them for 30 min (`upstream_400_codex_plan_gated_model`).
 
-```bash
-sudo docker exec -i sub2api-postgres psql -U sub2api -d sub2api -c \
-  "update accounts set credentials = credentials || jsonb_build_object('model_mapping',
-   (credentials->'model_mapping') || '{\"gpt-5.6-luna\":\"gpt-5.6-luna\"}'::jsonb)
-   where platform='openai' and type='oauth';"
-```
+Alternative: clearing the whitelist (empty mapping) makes an OAuth account accept any model
+id and lets OpenAI decide, which removes the need to re-sync. `usage_logs` had zero rows
+before 2026-09-09, so the deployment had never served a successful request before then.
 
-Clearing the whitelist entirely (empty mapping) makes an OAuth account accept any model id,
-which is simpler when OpenAI renames models often. `usage_logs` had zero rows before this
-session, so the deployment had never served a successful request.
+## Third-party relay test (xxcapi.top), 2026-09-09
+
+While our own deployment cannot generate images, a paid third-party relay was tested for
+gpt-image-2 with the same Amazon infographic. Full write-up, prompts, mask, request bodies
+and jpeg samples are in `ops/e2e/xxcapi/` (`RESULTS.md`, `run.sh`; key lives in `ops/.env`
+as `XXCAPI_KEY`). Summary with `gpt-image-2-medium`:
+
+| Parameter | Honored |
+| :--- | :--- |
+| prompt, text rendering | yes |
+| size, incl. arbitrary 1536x864 and 2048x2048 | yes, exact |
+| edits with reference image, edits with mask | yes (mask steers, whole frame re-rendered) |
+| response_format b64_json | yes (default is a hosted PNG URL + task_id) |
+| output_format jpeg, output_compression | **no**, always PNG |
+| high tier / quality=high | no channel available during test |
+
+Output carries an OpenAI-signed C2PA manifest ("OpenAI Media Service API", gpt-image 2.0),
+so the pixels are real OpenAI output; the exact non-preset size means a real Images API sits
+behind the relay, with the relay stripping format/compression and re-hosting as PNG.
+Pricing was ¥0.045 per 1K and ¥0.055 per 2K medium image, several times below OpenAI list.
 
 ## Keeping the fork in sync with upstream
 
