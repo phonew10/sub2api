@@ -42,3 +42,21 @@ Mask result: plant + shelf placed in the masked wall area; rest of the image pre
 | generate | gpt-image-2-high | 500 get_channel_failed "no available channel in group default" (1.5 s, not charged) | - |
 | edit | gpt-image-2-high | 503 "No available compatible accounts" (1.8 s, not charged) | - |
 Same two errors as round 1, ~10 h later: the high tier has no backing channel on this relay. Model list still advertises it.
+
+## Round 4 (2026-09-10): decisive mask probe — VERDICT: mask is IGNORED
+
+The round-2 "mask honored" call was a false positive: its prompt said "on the wall", so the model
+could place the plant without reading the mask. Correct design (`mask-probe.sh`): the hole sits on a
+plain wall patch the prompt never mentions (1000,240)-(1360,420) of the 1400px original, and the prompt
+only says "Fill the editable region with solid pure red. Change nothing else." Control = same prompt, no mask.
+
+| Call | Red inside hole | Red outside hole | Where the red went |
+| --- | --- | --- | --- |
+| WITH mask (gpt-image-2-medium, 1024) | 0.0% | 4.85% | layer panel 1 painted red; hole untouched |
+| NO mask (control) | 0.0% | 5.54% | same behaviour |
+
+Masked and unmasked calls are indistinguishable, so the relay drops the `mask` part before it
+reaches the model (a real OpenAI Images API call with this mask paints the hole). Agrees with the
+other agent's measurement (1–2% of hole with mask vs 66% unmasked on their probe).
+Re-run: `./ops/e2e/xxcapi/mask-probe.sh` (2 x 1K medium edits, ~¥0.09). Samples: samples/probe_mask.jpg,
+samples/probe_nomask.jpg, samples/mask_probe_compare.jpg.

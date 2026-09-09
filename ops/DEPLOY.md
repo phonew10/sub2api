@@ -175,7 +175,8 @@ as `XXCAPI_KEY`). Summary with `gpt-image-2-medium`:
 | :--- | :--- |
 | prompt, text rendering | yes |
 | size, incl. arbitrary 1536x864 and 2048x2048 | yes, exact |
-| edits with reference image, edits with mask | yes (mask steers, whole frame re-rendered) |
+| edits with reference image | yes |
+| edits with `mask` | **no**, mask field dropped (decisive probe 2026-09-10: `ops/e2e/xxcapi/mask-probe.sh`) |
 | response_format b64_json | yes (default is a hosted PNG URL + task_id) |
 | output_format jpeg, output_compression | **no**, always PNG |
 | high tier / quality=high | no channel available during test |
