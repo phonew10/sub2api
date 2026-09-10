@@ -60,3 +60,16 @@ reaches the model (a real OpenAI Images API call with this mask paints the hole)
 other agent's measurement (1–2% of hole with mask vs 66% unmasked on their probe).
 Re-run: `./ops/e2e/xxcapi/mask-probe.sh` (2 x 1K medium edits, ~¥0.09). Samples: samples/probe_mask.jpg,
 samples/probe_nomask.jpg, samples/mask_probe_compare.jpg.
+
+## Round 5 (2026-09-10): gpt-image-2.5-flare / gpt-image-2.5-sunburst — mask probe NOT possible, both aliases down
+| Call | gpt-image-2.5-flare | gpt-image-2.5-sunburst |
+| --- | --- | --- |
+| edit + mask (probe) | 408 `openai_error / bad_response_status_code` after 209 s | 502 "Upstream request failed" after 204 s; retry 502 after 9 s |
+| edit, no mask (control) | 408 same, 54 s | 502 same, 8 s and 19 s |
+| generate 1024x1024 | 408 `adobe throttled: status 408 … {"error_code":"timeout_error","message":"system under load"}` (rate_limit_error), 25 s | 502 "Upstream request failed", 7 s |
+
+Zero images produced in 8 calls, so no mask verdict for either alias. The flare error body leaks the
+backend: "adobe throttled" + an Adobe-style `timeout_error` payload, i.e. the relay serves this alias
+through an Adobe (Firefly) upstream that hosts OpenAI's GPT Image as a partner model, and that
+upstream is overloaded. Sunburst's channel is simply failing. Re-run later with
+`PROBE_OUT=ops/e2e/xxcapi/out/<name> ./ops/e2e/xxcapi/mask-probe.sh <alias> 1024x1024`.

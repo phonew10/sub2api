@@ -14,12 +14,13 @@ H="$(cd "$(dirname "$0")" && pwd)"; ENV_FILE="$H/../../.env"
 [[ -f "$ENV_FILE" ]] && set -a && . "$ENV_FILE" && set +a
 : "${XXCAPI_KEY:?put XXCAPI_KEY in ops/.env}"; BASE=${XXCAPI_BASE_URL:-https://xxcapi.top}
 MODEL=${1:-gpt-image-2-medium}; SIZE=${2:-1024x1024}
-OUT="$H/out"; mkdir -p "$OUT"; cd "$OUT"
+OUT="${PROBE_OUT:-$H/out}"; mkdir -p "$OUT"; cd "$OUT"
 PROMPT="Fill the editable region with solid pure red color (#FF0000), flat, no texture. Change nothing else in the image."
-python3 - <<'PY'
+H="$H" python3 - <<'PY'
+import os
 from PIL import Image, ImageDraw
-im=Image.open('../samples/original.jpg'); W,H=im.size
-m=Image.new('RGBA',(W,H),(0,0,0,255)); ImageDraw.Draw(m).rectangle((1000,240,1360,420),fill=(0,0,0,0)); m.save('../mask_probe.png')
+H0=os.environ['H']; im=Image.open(f'{H0}/samples/original.jpg'); W,H=im.size
+m=Image.new('RGBA',(W,H),(0,0,0,255)); ImageDraw.Draw(m).rectangle((1000,240,1360,420),fill=(0,0,0,0)); m.save(f'{H0}/mask_probe.png')
 PY
 for variant in mask nomask; do
   extra=(); [[ $variant == mask ]] && extra=(-F "mask=@$H/mask_probe.png")
