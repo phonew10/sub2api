@@ -88,3 +88,12 @@ Failed calls are refunded (usage went 44.5 → 34.5 over the session). Mask verd
 Retest when the relay operator confirms the 2.5 channels are healthy:
   PROBE_OUT=ops/e2e/xxcapi/out/flare    PROBE_EXTRA="aspect_ratio=1:1 quality=low" ./ops/e2e/xxcapi/mask-probe.sh gpt-image-2.5-flare 1K
   PROBE_OUT=ops/e2e/xxcapi/out/sunburst PROBE_EXTRA="aspect_ratio=1:1 quality=low" ./ops/e2e/xxcapi/mask-probe.sh gpt-image-2.5-sunburst 1K
+
+## Round 7 (2026-09-10): plain text-rendering generation on the 2.5 aliases — still no image
+Prompt: white-background carafe infographic with headline "Exceptional Insulation" + subline; size 1K, quality medium, aspectRatio 1:1.
+| Attempt | gpt-image-2.5-flare | gpt-image-2.5-sunburst |
+| --- | --- | --- |
+| 1 | 408 openai_error / bad_response_status_code, 23 s | 408 adobe throttled "system under load", 19 s |
+| 2 (after 90 s) | 408 openai_error, 74 s | 408 adobe throttled, 13 s |
+16 calls to the 2.5 aliases today, 0 images. The Adobe throttle message has now appeared on BOTH aliases,
+so they share one Adobe-backed channel that is overloaded. Neither alias is usable at the moment.
