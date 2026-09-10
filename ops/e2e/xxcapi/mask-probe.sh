@@ -6,6 +6,9 @@
 # A control call with the same prompt and NO mask must behave differently from the masked call.
 #
 #   ./ops/e2e/xxcapi/mask-probe.sh [model] [size]        (defaults: gpt-image-2-medium 1024x1024)
+#   PROBE_OUT=dir            per-run output directory (default ops/e2e/xxcapi/out)
+#   PROBE_EXTRA="k=v k=v"    extra multipart fields, e.g. for the 2.5 aliases:
+#                            PROBE_EXTRA="aspect_ratio=1:1 quality=medium output_format=jpeg" ... gpt-image-2.5-flare 1K
 # Needs XXCAPI_KEY / XXCAPI_BASE_URL in ops/.env (or exported). Cost: 2 x one 1K edit.
 # Verdict rule: honored  = red inside hole > 50% AND red outside hole < 2%
 #               ignored  = red inside hole < 5% (masked call looks like the control)
@@ -22,8 +25,9 @@ from PIL import Image, ImageDraw
 H0=os.environ['H']; im=Image.open(f'{H0}/samples/original.jpg'); W,H=im.size
 m=Image.new('RGBA',(W,H),(0,0,0,255)); ImageDraw.Draw(m).rectangle((1000,240,1360,420),fill=(0,0,0,0)); m.save(f'{H0}/mask_probe.png')
 PY
+EXTRA_FORM=(); for kv in ${PROBE_EXTRA:-}; do EXTRA_FORM+=(-F "$kv"); done
 for variant in mask nomask; do
-  extra=(); [[ $variant == mask ]] && extra=(-F "mask=@$H/mask_probe.png")
+  extra=("${EXTRA_FORM[@]}"); [[ $variant == mask ]] && extra+=(-F "mask=@$H/mask_probe.png")
   curl -s -m 900 -o "probe_$variant.json" -w "probe_$variant http=%{http_code} time=%{time_total}s\n" "$BASE/v1/images/edits" \
     -H "Authorization: Bearer $XXCAPI_KEY" -F "model=$MODEL" -F "image=@$H/samples/original.jpg" "${extra[@]}" -F "prompt=$PROMPT" -F "size=$SIZE"
   python3 "$H/check.py" "probe_$variant" || continue

@@ -73,3 +73,18 @@ backend: "adobe throttled" + an Adobe-style `timeout_error` payload, i.e. the re
 through an Adobe (Firefly) upstream that hosts OpenAI's GPT Image as a partner model, and that
 upstream is overloaded. Sunburst's channel is simply failing. Re-run later with
 `PROBE_OUT=ops/e2e/xxcapi/out/<name> ./ops/e2e/xxcapi/mask-probe.sh <alias> 1024x1024`.
+
+## Round 6 (2026-09-10): 2.5 aliases retried in the relay's documented form (size=1K, aspect_ratio=1:1, quality)
+| Call | gpt-image-2.5-flare | gpt-image-2.5-sunburst |
+| --- | --- | --- |
+| generate JSON, size 1K, quality medium, aspectRatio 1:1 | 500 "The operation timed out." after 258 s | 500 same, 271 s |
+| edit + mask, size 1K, quality low | 408 `adobe throttled … system under load` after 129 s | 500 timed out after 258 s |
+| edit no mask (control) | 500 timed out after 260 s | 408 `openai_error / bad_response_status_code` after 196 s |
+
+12 calls across rounds 5 and 6, zero images. The gateway accepts the documented parameters (no
+validation errors), so the aliases are wired, but their upstream (Adobe-hosted GPT Image for flare;
+sunburst returns generic upstream/408 errors) never completes within the relay's ~260 s ceiling.
+Failed calls are refunded (usage went 44.5 → 34.5 over the session). Mask verdict for both: UNKNOWN.
+Retest when the relay operator confirms the 2.5 channels are healthy:
+  PROBE_OUT=ops/e2e/xxcapi/out/flare    PROBE_EXTRA="aspect_ratio=1:1 quality=low" ./ops/e2e/xxcapi/mask-probe.sh gpt-image-2.5-flare 1K
+  PROBE_OUT=ops/e2e/xxcapi/out/sunburst PROBE_EXTRA="aspect_ratio=1:1 quality=low" ./ops/e2e/xxcapi/mask-probe.sh gpt-image-2.5-sunburst 1K
